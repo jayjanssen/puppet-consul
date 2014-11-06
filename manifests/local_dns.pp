@@ -1,6 +1,4 @@
 class consul::local_dns {
-	# include bind::package
-	# include bind::service
 	include bind
 	bind::server::conf { '/etc/named.conf':
 	    forwarders        => [ '8.8.8.8', '8.8.4.4' ],
@@ -15,4 +13,17 @@ class consul::local_dns {
 		    ],
 		}
 	}
+	
+	
+    class { 'resolv_conf':
+        nameservers => ['127.0.0.1'],
+		require => Service['named']
+  	}
+	
+	consul::service {'local_dns':
+		port           => 53,
+		check_script   => '/usr/bin/dig @127.0.0.1 google.com +time=1',
+		check_interval => '1m'
+	}
+	
 }
