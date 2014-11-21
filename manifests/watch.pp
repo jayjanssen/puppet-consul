@@ -69,7 +69,7 @@ define consul::watch(
     }
     'event': {
       $type_hash = {
-        name => $event_name,
+        name => $event_name ? { undef => $title, default => $event_name },
       }
     }
     /(nodes|services)/: {
