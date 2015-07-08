@@ -144,7 +144,7 @@ describe 'consul::watch' do
         it {
           should contain_file('/etc/consul/watch_my_watch.json') \
             .with_content(/"type" *: *"keyprefix"/)
-            .with_content(/"keyprefix" *: *"keyPref"/)
+            .with_content(/"prefix" *: *"keyPref"/)
         }
       end
     end
@@ -181,12 +181,12 @@ describe 'consul::watch' do
           'service'     => 'serviceName',
 
           'service_tag' => 'serviceTagName',
-          'passingonly' => 'true'
+          'passingonly' => true
         }}
         it {
           should contain_file('/etc/consul/watch_my_watch.json') \
             .with_content(/"tag" *: *"serviceTagName"/)
-            .with_content(/"passingonly" *: *"true"/)
+            .with_content(/"passingonly" *: *true/)
         }
       end
     end

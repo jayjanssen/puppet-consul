@@ -1,49 +1,55 @@
+# == Define consul::service
+#
+# Sets up a Consul service definition
+# http://www.consul.io/docs/agent/services.html
+#
+# == Parameters
+#
+# [*ensure*]
+#   Define availability of service. Use 'absent' to remove existing services.
+#   Defaults to 'present'
+#
+# [*service_name*]
+#   Name of the service. Defaults to title.
+#
+# [*id*]
+#   The unique ID of the service on the node. Defaults to title.
+#
+# [*tags*]
+#   Array of strings.
+#
+# [*address*]
+#   IP address the service is running at.
+#
+# [*port*]
+#   TCP port the service runs on.
+#
+# [*checks*]
+#   If provided an array of checks that will be added to this service
+#
 define consul::service(
+  $ensure         = 'present',
   $service_name   = $title,
+  $id             = $title,
   $tags           = [],
+  $address        = undef,
   $port           = undef,
-  $check_ttl      = undef,
-  $check_script   = undef,
-  $check_interval = undef,
+  $checks         = [],
 ) {
   include consul
-  $id = $title
+
+  consul_validate_checks($checks)
 
   $basic_hash = {
-    'id'   => $id,
-    'name' => $service_name,
-    'tags' => $tags,
-  }
-
-  if $check_ttl and $check_interval {
-    fail("Only one of check_ttl and check_interval can be defined")
-  }
-
-  if $check_ttl {
-    if $check_script {
-      fail("check_script must not be defined for ttl checks")
-    }
-    $check_hash = {
-      check => {
-        ttl => $check_ttl,
-      }
-    }
-  } elsif $check_interval {
-    if (! $check_script) {
-      fail("check_script must be defined for interval checks")
-    }
-    $check_hash = {
-      check => {
-        script   => $check_script,
-        interval => $check_interval,
-      }
-    }
-  } else {
-    $check_hash = {}
+    'id'      => $id,
+    'name'    => $service_name,
+    'address' => $address,
+    'tags'    => $tags,
+    'checks'  => $checks
   }
 
   if $port {
-    # implicit conversion from string to int so it won't be quoted in JSON 
+    # implicit conversion from string to int so it won't be quoted in JSON
     $port_hash = {
       port => $port * 1
     }
@@ -52,11 +58,12 @@ define consul::service(
   }
 
   $service_hash = {
-    service => merge($basic_hash, $check_hash, $port_hash)
+    service => delete_undef_values(merge($basic_hash, $port_hash))
   }
 
-  File[$consul::config_dir] ->
   file { "${consul::config_dir}/service_${id}.json":
-    content => template('consul/service.json.erb'),
+    ensure  => $ensure,
+    content => consul_sorted_json($service_hash),
+    require => File[$consul::config_dir],
   } ~> Class['consul::run_service']
 }

@@ -1,127 +1,95 @@
 # == Class consul::intall
 #
+# Installs consule based in the parameters from init
+#
 class consul::install {
 
   if $consul::data_dir {
-    file { "${consul::data_dir}":
+    file { $consul::data_dir:
       ensure => 'directory',
-      owner => $consul::user,
-      group => $consul::group,
-      mode  => '0755',
+      owner  => $consul::user,
+      group  => $consul::group,
+      mode   => '0755',
     }
   }
 
-  if $consul::install_method == 'url' {
-
-    ensure_packages(['unzip'])
-    staging::file { 'consul.zip':
-      source => $consul::download_url
-    } ->
-    staging::extract { 'consul.zip':
-      target  => $consul::bin_dir,
-      creates => "${consul::bin_dir}/consul",
-    } ->
-    file { "${consul::bin_dir}/consul":
-      owner => 'root',
-      group => 'root',
-      mode  => '0555',
-    }
-
-    if ($consul::ui_dir and $consul::data_dir) {
-      file { "${consul::data_dir}/${consul::version}_web_ui":
-        ensure => 'directory',
-        owner  => 'root',
-        group  => 'root',
-        mode   => '0755',
+  case $consul::install_method {
+    'url': {
+      if $::operatingsystem != 'darwin' {
+        ensure_packages(['unzip'])
+      }
+      staging::file { 'consul.zip':
+        source => $consul::real_download_url
       } ->
-      staging::deploy { 'consul_web_ui.zip':
-        source  => "${consul::ui_download_url}",
-        target  => "${consul::data_dir}/${consul::version}_web_ui",
-        creates => "${consul::data_dir}/${consul::version}_web_ui/dist",
+      staging::extract { 'consul.zip':
+        target  => $consul::bin_dir,
+        creates => "${consul::bin_dir}/consul",
+      } ->
+      file { "${consul::bin_dir}/consul":
+        owner => 'root',
+        group => 0, # 0 instead of root because OS X uses "wheel".
+        mode  => '0555',
       }
-      file { "${consul::ui_dir}":
-        ensure => 'symlink',
-        target => "${consul::data_dir}/${consul::version}_web_ui/dist",
-      }
-    }
 
-  } elsif $consul::install_method == 'package' {
+      if ($consul::ui_dir and $consul::data_dir) {
+        file { "${consul::data_dir}/${consul::version}_web_ui":
+          ensure => 'directory',
+          owner  => 'root',
+          group  => 0, # 0 instead of root because OS X uses "wheel".
+          mode   => '0755',
+        } ->
+        staging::deploy { 'consul_web_ui.zip':
+          source  => $consul::real_ui_download_url,
+          target  => "${consul::data_dir}/${consul::version}_web_ui",
+          creates => "${consul::data_dir}/${consul::version}_web_ui/dist",
+        }
+        file { $consul::ui_dir:
+          ensure => 'symlink',
+          target => "${consul::data_dir}/${consul::version}_web_ui/dist",
+        }
+      }
+    }
+    'package': {
+      package { $consul::package_name:
+        ensure => $consul::package_ensure,
+      }
 
-    package { $consul::package_name:
-      ensure => $consul::package_ensure,
-    }
+      if $consul::ui_dir {
+        package { $consul::ui_package_name:
+          ensure  => $consul::ui_package_ensure,
+          require => Package[$consul::package_name]
+        }
+      }
 
-    if $consul::ui_dir {
-      package { $consul::ui_package_name:
-        ensure => $consul::ui_package_ensure,
+      if $consul::manage_user {
+        User[$consul::user] -> Package[$consul::package_name]
       }
-    }
 
-  } else {
-    fail("The provided install method ${consul::install_method} is invalid")
-  }
-
-  case $consul::init_style {
-    'upstart' : {
-      file { '/etc/init/consul.conf':
-        mode   => '0444',
-        owner   => 'root',
-        group   => 'root',
-        content => template('consul/consul.upstart.erb'),
-      }
-      file { '/etc/init.d/consul':
-        ensure => link,
-        target => "/lib/init/upstart-job",
-        owner  => root,
-        group  => root,
-        mode   => 0755,
+      if $consul::data_dir {
+        Package[$consul::package_name] -> File[$consul::data_dir]
       }
     }
-    'systemd' : {
-      file { '/lib/systemd/system/consul.service':
-        mode   => '0644',
-        owner   => 'root',
-        group   => 'root',
-        content => template('consul/consul.systemd.erb'),
-      }
-    }
-    'sysv' : {
-      file { '/etc/init.d/consul':
-        mode    => '0555',
-        owner   => 'root',
-        group   => 'root',
-        content => template('consul/consul.sysv.erb')
-      }
-    }
-    'debian' : {
-      file { '/etc/init.d/consul':
-        mode    => '0555',
-        owner   => 'root',
-        group   => 'root',
-        content => template('consul/consul.debian.erb')
-      }
-    }
-    'sles' : {
-      file { '/etc/init.d/consul':
-        mode    => '0555',
-        owner   => 'root',
-        group   => 'root',
-        content => template('consul/consul.sles.erb')
-      }
-    }
-    default : {
-      fail("I don't know how to create an init script for style $init_style")
+    'none': {}
+    default: {
+      fail("The provided install method ${consul::install_method} is invalid")
     }
   }
 
   if $consul::manage_user {
     user { $consul::user:
       ensure => 'present',
+      system => true,
+      groups => $consul::extra_groups,
+    }
+
+    if $consul::manage_group {
+      Group[$consul::group] -> User[$consul::user]
     }
   }
   if $consul::manage_group {
     group { $consul::group:
       ensure => 'present',
+      system => true,
     }
   }
 }

@@ -14,10 +14,5 @@ end
 
 group :development do
   gem 'json'
-#  gem "travis"
-#  gem "travis-lint"
-  gem 'beaker', '~> 1.11.0'
   gem 'beaker-rspec'
-#  gem "puppet-blacksmith"
-  gem "guard-rake"
 end

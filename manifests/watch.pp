@@ -1,4 +1,44 @@
-
+# == Define: consul::watch
+#
+# Sets up Consul watch, to span commands when data changes.
+# http://www.consul.io/docs/agent/watches.html
+#
+# == Parameters
+#
+# [*handler*]
+#   Full path to the script that will be excuted.
+#
+# [*datacenter*]
+#   String overriding consul's default datacenter.
+#
+# [*token*]
+#   String to override the default token.
+#
+# [*type*]
+#   Type of data to watch. (Like key, service, services, nodes)
+#
+# [*key*]
+#   Watch a specific key.
+#
+# [*keyprefix*]
+#   Watch a whole keyprefix
+#
+# [*service*]
+#   Watch a particular service
+#
+# [*service_tag*]
+#   This actually maps to the "tag" param for service watches.
+#   (`tag` is a puppet builtin metaparameter)
+#
+# [*passingonly*]
+#   Watch only those services that are passing healthchecks.
+#
+# [*state*]
+#   Watch a state change on a service healthcheck.
+#
+# [*event_name*]
+#   Name of an event to watch for.
+#
 define consul::watch(
   $handler      = undef,
   $datacenter   = undef,
@@ -7,10 +47,10 @@ define consul::watch(
   $key          = undef,
   $keyprefix    = undef,
   $service      = undef,
-  $service_tag  = undef, #Note: this actually maps to the "tag" param for service watches
+  $service_tag  = undef,
   $passingonly  = undef,
   $state        = undef,
-  $event_name   = undef, #Note: this actually maps to the "name" param for event watches
+  $event_name   = undef,
 ) {
   include consul
   $id = $title
@@ -34,6 +74,10 @@ define consul::watch(
     fail ('All watch conditions must have a type defined')
   }
 
+  if ($passingonly ) {
+    validate_bool($passingonly)
+  }
+
   case $type {
     'key': {
       if (! $key ) {
@@ -48,7 +92,7 @@ define consul::watch(
         fail('keyprefix is required for watch type of [keyprefix]')
       }
       $type_hash = {
-        keyprefix => $keyprefix,
+        prefix => $keyprefix,
       }
     }
     'service': {
