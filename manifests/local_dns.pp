@@ -21,9 +21,11 @@ class consul::local_dns {
   	}
 	
 	consul::service {'local_dns':
-		port           => 53,
-		check_script   => '/usr/bin/dig @127.0.0.1 google.com +time=1',
-		check_interval => '1m'
+		checks => [{
+			port           => 53,
+			script   => '/usr/bin/dig @127.0.0.1 google.com +time=1',
+			interval => '1m'
+		}]
 	}
 	
 }
