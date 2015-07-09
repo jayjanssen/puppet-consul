@@ -23,14 +23,7 @@ class consul::run_service {
       cwd         => $consul::config_dir,
       path        => [$consul::bin_dir,'/bin','/usr/bin'],
       command     => "consul join ${consul::join_cluster}",
-      onlyif      => 'consul info | grep "num_peers = 0"',
-      subscribe   => Service['consul'],
-    }
-    exec { 'write join_cluster':
-      cwd         => $consul::config_dir,
-      path        => [$consul::bin_dir,'/bin','/usr/bin'],
-      command     => "echo \"${consul::join_cluster}\" > /tmp/join_cluster",
-      onlyif      => 'consul info | grep "num_peers = 0"',
+      onlyif      => 'consul info | grep "members = 1"',
       subscribe   => Service['consul'],
     }
   }
