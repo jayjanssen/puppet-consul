@@ -17,7 +17,7 @@ class consul::local_dns {
 	
     class { 'resolv_conf':
         nameservers => ['127.0.0.1'],
-		require => Service['named']
+		require => [Service['named'], Service['consul']]
   	}
 	
 	consul::service {'local_dns':
